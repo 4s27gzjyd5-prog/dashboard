@@ -305,6 +305,43 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .news-section {
+    border: 1px solid #2d3148;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  .news-section:last-child { margin-bottom: 0; }
+
+  .news-section summary {
+    cursor: pointer;
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #8b95a5;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #181b25;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+  }
+
+  .news-section summary::-webkit-details-marker { display: none; }
+
+  .news-section summary::before {
+    content: '▸';
+    font-size: 11px;
+    transition: transform 0.15s;
+  }
+
+  .news-section[open] summary::before { transform: rotate(90deg); }
+
+  .news-section .news-list { padding: 4px 16px 12px; }
+
   /* States */
   .loading, .error {
     text-align: center;
@@ -419,7 +456,14 @@ const CONFIG = {
       <div class="panel-title">FT Headlines</div>
       <div class="updated" id="news-updated"></div>
     </div>
-    <div id="news-content"><div class="loading">Loading…</div></div>
+    <details class="news-section" open>
+      <summary>Top Stories</summary>
+      <div class="news-list" id="news-top"><div class="loading">Loading…</div></div>
+    </details>
+    <details class="news-section" open>
+      <summary>Markets &amp; Money</summary>
+      <div class="news-list" id="news-money"><div class="loading">Loading…</div></div>
+    </details>
   </div>
 </div>
 
@@ -733,61 +777,57 @@ async function fetchElectricity() {
 }
 
 // ── FT Headlines ──────────────────────────────────────────────
-async function fetchNews() {
-  const el = document.getElementById('news-content');
+async function fetchFeed(feedUrl) {
+  // Primary: rss2json
   try {
-    // Primary: rss2json converts FT RSS to JSON with CORS
-    const rssUrl = encodeURIComponent('https://www.ft.com/rss/home');
-    const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`);
-    if (!res.ok) throw new Error(`rss2json: ${res.status}`);
+    const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`);
+    if (!res.ok) throw new Error(res.status);
     const data = await res.json();
-
     if (data.status !== 'ok' || !data.items?.length) throw new Error('No items');
+    return data.items.slice(0, 10).map(i => ({
+      title: i.title, link: i.link, pubDate: i.pubDate
+    }));
+  } catch (e) {
+    // Fallback: corsproxy + XML parse
+    const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(feedUrl)}`);
+    if (!res.ok) throw new Error(res.status);
+    const xml = await res.text();
+    const doc = new DOMParser().parseFromString(xml, 'text/xml');
+    return [...doc.querySelectorAll('item')].slice(0, 10).map(item => ({
+      title: item.querySelector('title')?.textContent || '',
+      link: item.querySelector('link')?.textContent || '#',
+      pubDate: item.querySelector('pubDate')?.textContent || '',
+    }));
+  }
+}
 
-    const items = data.items.slice(0, 10);
-    let html = '';
-    for (const item of items) {
-      const date = new Date(item.pubDate);
-      const timeStr = date.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' });
-      html += `<div class="news-item">
-        <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
-        <span class="news-time">${timeStr}</span>
-      </div>`;
-    }
+function renderNewsItems(items) {
+  return items.map(item => {
+    const date = item.pubDate ? new Date(item.pubDate) : null;
+    const timeStr = date && !isNaN(date) ? date.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' }) : '';
+    return `<div class="news-item">
+      <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
+      <span class="news-time">${timeStr}</span>
+    </div>`;
+  }).join('');
+}
 
-    el.innerHTML = html;
-    document.getElementById('news-updated').textContent = timeAgo(new Date());
-  } catch (err) {
-    // Fallback: corsproxy + parse XML
+async function fetchNews() {
+  const feeds = [
+    { el: document.getElementById('news-top'), url: 'https://www.ft.com/rss/home' },
+    { el: document.getElementById('news-money'), url: 'https://www.ft.com/markets?format=rss' },
+  ];
+
+  await Promise.all(feeds.map(async ({ el, url }) => {
     try {
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent('https://www.ft.com/rss/home')}`;
-      const res = await fetch(proxyUrl);
-      if (!res.ok) throw new Error(res.status);
-      const xml = await res.text();
-      const doc = new DOMParser().parseFromString(xml, 'text/xml');
-      const items = [...doc.querySelectorAll('item')].slice(0, 10);
-
-      if (!items.length) throw new Error('No items in feed');
-
-      let html = '';
-      for (const item of items) {
-        const title = item.querySelector('title')?.textContent || '';
-        const link = item.querySelector('link')?.textContent || '#';
-        const pubDate = item.querySelector('pubDate')?.textContent || '';
-        const date = pubDate ? new Date(pubDate) : null;
-        const timeStr = date ? date.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' }) : '';
-        html += `<div class="news-item">
-          <a href="${link}" target="_blank" rel="noopener">${title}</a>
-          <span class="news-time">${timeStr}</span>
-        </div>`;
-      }
-
-      el.innerHTML = html;
-      document.getElementById('news-updated').textContent = timeAgo(new Date());
-    } catch (err2) {
+      const items = await fetchFeed(url);
+      el.innerHTML = items.length ? renderNewsItems(items) : '<div class="loading">No stories</div>';
+    } catch (err) {
       el.innerHTML = `<div class="error">FT: ${err.message}</div>`;
     }
-  }
+  }));
+
+  document.getElementById('news-updated').textContent = timeAgo(new Date());
 }
 
 // ── Stock Chart (6 months) ─────────────────────────────────────
