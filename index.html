@@ -277,6 +277,34 @@
     margin: 20px auto 0;
   }
 
+  /* News */
+  .news-item {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #1a1d2a;
+    font-size: 14px;
+  }
+
+  .news-item:last-child { border-bottom: none; }
+
+  .news-item a {
+    color: #c5cad6;
+    text-decoration: none;
+    line-height: 1.4;
+    flex: 1;
+  }
+
+  .news-item a:hover { color: #fff; }
+
+  .news-time {
+    font-size: 11px;
+    color: #4a5068;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* States */
   .loading, .error {
     text-align: center;
@@ -339,6 +367,12 @@ const CONFIG = {
   EMI_API_KEY: '',
   EMI_NODE: 'HAY2201',  // Haywards — Wellington region GXP
   EMI_REFRESH_SEC: 300,  // 5 min (data updates every 5 min)
+
+  // FT Headlines (via RSS — no key needed)
+  FT_REFRESH_SEC: 1800,  // 30 min
+
+  // Bus stop display names
+  BUS_STOP_NAMES: { '7521': 'Balaena Bay', '7542': 'Roseneath' },
 };
 </script>
 
@@ -375,6 +409,17 @@ const CONFIG = {
       <canvas id="chart-canvas" height="320"></canvas>
       <div class="chart-labels"><span id="chart-start"></span><span id="chart-end"></span></div>
     </div>
+  </div>
+</div>
+
+<!-- FT Headlines (full width) -->
+<div class="bottom-panel">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">FT Headlines</div>
+      <div class="updated" id="news-updated"></div>
+    </div>
+    <div id="news-content"><div class="loading">Loading…</div></div>
   </div>
 </div>
 
@@ -475,8 +520,9 @@ async function fetchBus() {
         ? `Stop ${stopId} — ${departures[0]?.destination?.name || ''}`
         : `Stop ${stopId}`;
 
+      const displayName = CONFIG.BUS_STOP_NAMES[stopId] || `Stop ${stopId}`;
       html += `<div class="stop-group">`;
-      html += `<div class="stop-name">Stop ${stopId}</div>`;
+      html += `<div class="stop-name">${displayName}</div>`;
 
       if (!departures.length) {
         html += `<div class="loading">No upcoming departures</div>`;
@@ -686,6 +732,64 @@ async function fetchElectricity() {
   }
 }
 
+// ── FT Headlines ──────────────────────────────────────────────
+async function fetchNews() {
+  const el = document.getElementById('news-content');
+  try {
+    // Primary: rss2json converts FT RSS to JSON with CORS
+    const rssUrl = encodeURIComponent('https://www.ft.com/rss/home');
+    const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`);
+    if (!res.ok) throw new Error(`rss2json: ${res.status}`);
+    const data = await res.json();
+
+    if (data.status !== 'ok' || !data.items?.length) throw new Error('No items');
+
+    const items = data.items.slice(0, 10);
+    let html = '';
+    for (const item of items) {
+      const date = new Date(item.pubDate);
+      const timeStr = date.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' });
+      html += `<div class="news-item">
+        <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
+        <span class="news-time">${timeStr}</span>
+      </div>`;
+    }
+
+    el.innerHTML = html;
+    document.getElementById('news-updated').textContent = timeAgo(new Date());
+  } catch (err) {
+    // Fallback: corsproxy + parse XML
+    try {
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent('https://www.ft.com/rss/home')}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) throw new Error(res.status);
+      const xml = await res.text();
+      const doc = new DOMParser().parseFromString(xml, 'text/xml');
+      const items = [...doc.querySelectorAll('item')].slice(0, 10);
+
+      if (!items.length) throw new Error('No items in feed');
+
+      let html = '';
+      for (const item of items) {
+        const title = item.querySelector('title')?.textContent || '';
+        const link = item.querySelector('link')?.textContent || '#';
+        const pubDate = item.querySelector('pubDate')?.textContent || '';
+        const date = pubDate ? new Date(pubDate) : null;
+        const timeStr = date ? date.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' }) : '';
+        html += `<div class="news-item">
+          <a href="${link}" target="_blank" rel="noopener">${title}</a>
+          <span class="news-time">${timeStr}</span>
+        </div>`;
+      }
+
+      el.innerHTML = html;
+      document.getElementById('news-updated').textContent = timeAgo(new Date());
+    } catch (err2) {
+      el.innerHTML = `<div class="error">FT: ${err.message}</div>`;
+    }
+  }
+}
+
 // ── Stock Chart (6 months) ─────────────────────────────────────
 // Fallback data fetched 2025-02-25
 const CHART_FALLBACK = {
@@ -780,11 +884,13 @@ fetchWeather();
 fetchStocks();
 fetchStockChart();
 fetchElectricity();
+fetchNews();
 
 setInterval(fetchBus, CONFIG.BUS_REFRESH_SEC * 1000);
 setInterval(fetchWeather, CONFIG.WEATHER_REFRESH_SEC * 1000);
 setInterval(fetchStocks, CONFIG.STOCK_REFRESH_SEC * 1000);
 setInterval(fetchElectricity, CONFIG.EMI_REFRESH_SEC * 1000);
+setInterval(fetchNews, CONFIG.FT_REFRESH_SEC * 1000);
 </script>
 
 </body>
