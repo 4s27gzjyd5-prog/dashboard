@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #0f1117;
+    color: #e1e4e8;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .panel {
+    background: #1c1f2b;
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #2d3148;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #2d3148;
+  }
+
+  .panel-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #8b95a5;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .updated {
+    font-size: 11px;
+    color: #4a5068;
+  }
+
+  /* Bus */
+  .stop-group { margin-bottom: 20px; }
+  .stop-group:last-child { margin-bottom: 0; }
+
+  .stop-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b9fff;
+    margin-bottom: 10px;
+  }
+
+  .departure-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #1a1d2a;
+    font-size: 14px;
+  }
+
+  .departure-row:last-child { border-bottom: none; }
+
+  .route-badge {
+    background: #2a3a5c;
+    color: #6b9fff;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    min-width: 40px;
+    text-align: center;
+    margin-right: 12px;
+  }
+
+  .departure-dest { flex: 1; color: #c5cad6; }
+
+  .departure-time {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .departure-time.soon { color: #f0883e; }
+  .departure-time.now { color: #e55; }
+  .departure-time.later { color: #56d364; }
+
+  /* Weather */
+  .weather-current {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .weather-icon { font-size: 48px; line-height: 1; }
+
+  .weather-temp {
+    font-size: 42px;
+    font-weight: 300;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .weather-temp span { font-size: 22px; color: #8b95a5; }
+
+  .weather-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .weather-detail {
+    font-size: 13px;
+    color: #8b95a5;
+  }
+
+  .weather-detail strong {
+    color: #c5cad6;
+    font-weight: 500;
+  }
+
+  .forecast-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #1a1d2a;
+    font-size: 13px;
+  }
+
+  .forecast-row:last-child { border-bottom: none; }
+  .forecast-day { width: 80px; color: #8b95a5; }
+  .forecast-icon { width: 32px; text-align: center; }
+
+  .forecast-temps {
+    flex: 1;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .forecast-temps .high { color: #e1e4e8; font-weight: 500; }
+  .forecast-temps .low { color: #4a5068; margin-left: 8px; }
+
+  /* Stocks */
+  .stock-symbol {
+    font-size: 13px;
+    color: #8b95a5;
+    margin-bottom: 4px;
+  }
+
+  .stock-price {
+    font-size: 42px;
+    font-weight: 300;
+    color: #fff;
+    line-height: 1;
+    margin-bottom: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stock-change {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 24px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stock-change.up { color: #56d364; }
+  .stock-change.down { color: #f85149; }
+  .stock-change.flat { color: #8b95a5; }
+
+  .stock-chart-wrap {
+    margin: 20px 0;
+    position: relative;
+  }
+
+  .stock-chart-wrap canvas {
+    width: 100%;
+    height: 160px;
+    display: block;
+  }
+
+  .chart-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #4a5068;
+    margin-top: 4px;
+  }
+
+  .chart-range {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #4a5068;
+    margin-bottom: 6px;
+  }
+
+  .chart-range .chart-hi { color: #56d364; }
+  .chart-range .chart-lo { color: #f85149; }
+
+  .stock-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .stock-detail-label {
+    font-size: 11px;
+    color: #4a5068;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .stock-detail-value {
+    font-size: 16px;
+    color: #c5cad6;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Electricity */
+  .elec-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  .elec-current {
+    font-size: 36px;
+    font-weight: 300;
+    color: #fff;
+    line-height: 1;
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .elec-current span { font-size: 16px; color: #8b95a5; }
+
+  .elec-node {
+    font-size: 13px;
+    color: #8b95a5;
+    margin-bottom: 16px;
+  }
+
+  .elec-history-row {
+    display: flex;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #1a1d2a;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .elec-history-row:last-child { border-bottom: none; }
+
+  .elec-time { width: 60px; color: #4a5068; }
+  .elec-price { flex: 1; text-align: right; font-weight: 500; }
+
+  .elec-price.cheap { color: #56d364; }
+  .elec-price.mid { color: #f0883e; }
+  .elec-price.expensive { color: #f85149; }
+
+  .bottom-panel {
+    max-width: 1400px;
+    margin: 20px auto 0;
+  }
+
+  /* States */
+  .loading, .error {
+    text-align: center;
+    padding: 40px 0;
+    font-size: 14px;
+    color: #4a5068;
+  }
+
+  .error { color: #f85149; }
+
+  .config-warning {
+    background: #2a2000;
+    border: 1px solid #5a4a00;
+    color: #e8c547;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 20px;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .config-warning code {
+    background: #1c1f2b;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+
+  @media (max-width: 1000px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     CONFIGURATION — edit these values
+     ============================================================ -->
+<script>
+const CONFIG = {
+  // Metlink: get a free key at https://opendata.metlink.org.nz
+  METLINK_API_KEY: 'Ds6mNsLqv73Lf6YbqOuASyznBe5HYY82tKqrdcbg',
+  BUS_STOPS: ['7521', '7542'],
+  BUS_REFRESH_SEC: 30,
+
+  // Weather: no key needed
+  WEATHER_LAT: -41.29,
+  WEATHER_LON: 174.78,
+  WEATHER_REFRESH_SEC: 900,
+
+  // Finnhub: get a free key at https://finnhub.io/register
+  FINNHUB_API_KEY: 'd6f2ripr01qvn4o1kdqgd6f2ripr01qvn4o1kdr0',
+  STOCK_SYMBOL: 'ACWI',
+  STOCK_LABEL: 'MSCI Total World (ACWI)',
+  STOCK_REFRESH_SEC: 60,
+
+  // EMI (Electricity Authority): get a free key at https://emi.developer.azure-api.net/
+  EMI_API_KEY: '',
+  EMI_NODE: 'HAY2201',  // Haywards — Wellington region GXP
+  EMI_REFRESH_SEC: 300,  // 5 min (data updates every 5 min)
+};
+</script>
+
+<div id="config-banner"></div>
+
+<div class="grid">
+  <!-- Bus Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Bus Departures</div>
+      <div class="updated" id="bus-updated"></div>
+    </div>
+    <div id="bus-content"><div class="loading">Loading…</div></div>
+  </div>
+
+  <!-- Weather Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Wellington Vibes</div>
+      <div class="updated" id="weather-updated"></div>
+    </div>
+    <div id="weather-content"><div class="loading">Loading…</div></div>
+  </div>
+
+  <!-- Stocks Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Global Vibes</div>
+      <div class="updated" id="stocks-updated"></div>
+    </div>
+    <div id="stocks-content"><div class="loading">Loading…</div></div>
+    <div id="stocks-chart" class="stock-chart-wrap" style="display:none">
+      <div class="chart-range"><span id="chart-lo" class="chart-lo"></span><span id="chart-hi" class="chart-hi"></span></div>
+      <canvas id="chart-canvas" height="320"></canvas>
+      <div class="chart-labels"><span id="chart-start"></span><span id="chart-end"></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Electricity Panel (full width) -->
+<div class="bottom-panel">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Electricity Spot Price</div>
+      <div class="updated" id="elec-updated"></div>
+    </div>
+    <div id="elec-content"><div class="loading">Loading…</div></div>
+  </div>
+</div>
+
+<script>
+// ── Utilities ──────────────────────────────────────────────────
+function timeAgo(date) {
+  const s = Math.floor((Date.now() - date) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  return Math.floor(s / 3600) + 'h ago';
+}
+
+function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' });
+}
+
+function minutesUntil(iso) {
+  return Math.round((new Date(iso) - Date.now()) / 60000);
+}
+
+function weatherIcon(code, isDay) {
+  const icons = {
+    0: isDay ? '☀️' : '🌙', 1: '🌤️', 2: '⛅', 3: '☁️',
+    45: '🌫️', 48: '🌫️',
+    51: '🌦️', 53: '🌦️', 55: '🌧️',
+    61: '🌧️', 63: '🌧️', 65: '🌧️',
+    71: '🌨️', 73: '🌨️', 75: '🌨️',
+    80: '🌦️', 81: '🌧️', 82: '🌧️',
+    95: '⛈️', 96: '⛈️', 99: '⛈️',
+  };
+  return icons[code] || '🌡️';
+}
+
+function weatherDesc(code) {
+  const descs = {
+    0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Overcast',
+    45: 'Fog', 48: 'Freezing fog',
+    51: 'Light drizzle', 53: 'Drizzle', 55: 'Heavy drizzle',
+    61: 'Light rain', 63: 'Rain', 65: 'Heavy rain',
+    71: 'Light snow', 73: 'Snow', 75: 'Heavy snow',
+    80: 'Light showers', 81: 'Showers', 82: 'Heavy showers',
+    95: 'Thunderstorm', 96: 'Thunderstorm + hail', 99: 'Thunderstorm + heavy hail',
+  };
+  return descs[code] || 'Unknown';
+}
+
+function dayName(dateStr, i) {
+  if (i === 0) return 'Today';
+  if (i === 1) return 'Tomorrow';
+  return new Date(dateStr).toLocaleDateString('en-NZ', { weekday: 'short' });
+}
+
+// ── Config banner ──────────────────────────────────────────────
+(function checkConfig() {
+  const missing = [];
+  if (!CONFIG.METLINK_API_KEY) missing.push('METLINK_API_KEY');
+  if (!CONFIG.FINNHUB_API_KEY) missing.push('FINNHUB_API_KEY');
+  if (!CONFIG.EMI_API_KEY) missing.push('EMI_API_KEY');
+  if (missing.length) {
+    document.getElementById('config-banner').innerHTML =
+      `<div class="config-warning">Add your API keys in the CONFIG section at the top of this file: ${missing.map(k => `<code>${k}</code>`).join(', ')}</div>`;
+  }
+})();
+
+// ── Bus Departures ─────────────────────────────────────────────
+async function fetchBus() {
+  const el = document.getElementById('bus-content');
+  if (!CONFIG.METLINK_API_KEY) {
+    el.innerHTML = '<div class="error">Metlink API key not set</div>';
+    return;
+  }
+
+  try {
+    const groups = await Promise.all(CONFIG.BUS_STOPS.map(async (stopId) => {
+      const res = await fetch(
+        `https://api.opendata.metlink.org.nz/v1/stop-predictions?stop_id=${stopId}`,
+        { headers: { 'x-api-key': CONFIG.METLINK_API_KEY } }
+      );
+      if (!res.ok) throw new Error(`Stop ${stopId}: ${res.status}`);
+      return { stopId, data: await res.json() };
+    }));
+
+    let html = '';
+    for (const { stopId, data } of groups) {
+      const departures = (data.departures || []).slice(0, 5);
+      const stopName = departures[0]?.stop_id
+        ? `Stop ${stopId} — ${departures[0]?.destination?.name || ''}`
+        : `Stop ${stopId}`;
+
+      html += `<div class="stop-group">`;
+      html += `<div class="stop-name">Stop ${stopId}</div>`;
+
+      if (!departures.length) {
+        html += `<div class="loading">No upcoming departures</div>`;
+      }
+
+      for (const d of departures) {
+        const expected = d.arrival?.expected || d.departure?.expected
+          || d.arrival?.aimed || d.departure?.aimed;
+        if (!expected) continue;
+
+        const mins = minutesUntil(expected);
+        let timeClass = 'later';
+        let timeText = `${mins} min`;
+        if (mins <= 0) { timeClass = 'now'; timeText = 'Due'; }
+        else if (mins <= 5) { timeClass = 'soon'; }
+
+        const route = d.service_id || '?';
+        const dest = d.destination?.name || d.direction || '';
+
+        html += `<div class="departure-row">
+          <div class="route-badge">${route}</div>
+          <div class="departure-dest">${dest}</div>
+          <div class="departure-time ${timeClass}">${timeText}</div>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    el.innerHTML = html;
+    document.getElementById('bus-updated').textContent = timeAgo(new Date());
+  } catch (err) {
+    el.innerHTML = `<div class="error">${err.message}</div>`;
+  }
+}
+
+// ── Weather ────────────────────────────────────────────────────
+async function fetchWeather() {
+  const el = document.getElementById('weather-content');
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${CONFIG.WEATHER_LAT}&longitude=${CONFIG.WEATHER_LON}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Pacific%2FAuckland&forecast_days=5`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Weather API: ${res.status}`);
+    const data = await res.json();
+    const c = data.current;
+
+    let html = `
+      <div class="weather-current">
+        <div class="weather-icon">${weatherIcon(c.weather_code, c.is_day)}</div>
+        <div>
+          <div class="weather-temp">${Math.round(c.temperature_2m)}<span>°C</span></div>
+          <div style="color:#8b95a5;font-size:13px;margin-top:4px">${weatherDesc(c.weather_code)}</div>
+        </div>
+      </div>
+      <div class="weather-details">
+        <div class="weather-detail">Feels like <strong>${Math.round(c.apparent_temperature)}°</strong></div>
+        <div class="weather-detail">Humidity <strong>${c.relative_humidity_2m}%</strong></div>
+        <div class="weather-detail">Wind <strong>${Math.round(c.wind_speed_10m)} km/h</strong></div>
+      </div>
+    `;
+
+    const d = data.daily;
+    for (let i = 0; i < d.time.length; i++) {
+      html += `<div class="forecast-row">
+        <div class="forecast-day">${dayName(d.time[i], i)}</div>
+        <div class="forecast-icon">${weatherIcon(d.weather_code[i], true)}</div>
+        <div class="forecast-temps">
+          <span class="high">${Math.round(d.temperature_2m_max[i])}°</span>
+          <span class="low">${Math.round(d.temperature_2m_min[i])}°</span>
+        </div>
+      </div>`;
+    }
+
+    el.innerHTML = html;
+    document.getElementById('weather-updated').textContent = timeAgo(new Date());
+  } catch (err) {
+    el.innerHTML = `<div class="error">${err.message}</div>`;
+  }
+}
+
+// ── Stocks ─────────────────────────────────────────────────────
+async function fetchStocks() {
+  const el = document.getElementById('stocks-content');
+  if (!CONFIG.FINNHUB_API_KEY) {
+    el.innerHTML = '<div class="error">Finnhub API key not set</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(
+      `https://finnhub.io/api/v1/quote?symbol=${CONFIG.STOCK_SYMBOL}&token=${CONFIG.FINNHUB_API_KEY}`
+    );
+    if (!res.ok) throw new Error(`Finnhub: ${res.status}`);
+    const q = await res.json();
+
+    if (!q.c) throw new Error('No data — market may be closed');
+
+    const changeDir = q.d > 0 ? 'up' : q.d < 0 ? 'down' : 'flat';
+    const sign = q.d > 0 ? '+' : '';
+
+    const html = `
+      <div class="stock-symbol">${CONFIG.STOCK_LABEL}</div>
+      <div class="stock-price">$${q.c.toFixed(2)}</div>
+      <div class="stock-change ${changeDir}">${sign}${q.d.toFixed(2)} (${sign}${q.dp.toFixed(2)}%)</div>
+      <div class="stock-details">
+        <div>
+          <div class="stock-detail-label">Open</div>
+          <div class="stock-detail-value">$${q.o.toFixed(2)}</div>
+        </div>
+        <div>
+          <div class="stock-detail-label">Prev Close</div>
+          <div class="stock-detail-value">$${q.pc.toFixed(2)}</div>
+        </div>
+        <div>
+          <div class="stock-detail-label">High</div>
+          <div class="stock-detail-value">$${q.h.toFixed(2)}</div>
+        </div>
+        <div>
+          <div class="stock-detail-label">Low</div>
+          <div class="stock-detail-value">$${q.l.toFixed(2)}</div>
+        </div>
+      </div>
+    `;
+
+    el.innerHTML = html;
+    document.getElementById('stocks-updated').textContent = timeAgo(new Date());
+  } catch (err) {
+    el.innerHTML = `<div class="error">${err.message}</div>`;
+  }
+}
+
+// ── Electricity Spot Price ─────────────────────────────────────
+async function fetchElectricity() {
+  const el = document.getElementById('elec-content');
+  if (!CONFIG.EMI_API_KEY) {
+    el.innerHTML = '<div class="error">EMI API key not set — register free at emi.developer.azure-api.net</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch('https://emi.azure-api.net/rtp/', {
+      headers: { 'Ocp-Apim-Subscription-Key': CONFIG.EMI_API_KEY }
+    });
+    if (!res.ok) throw new Error(`EMI API: ${res.status}`);
+    const data = await res.json();
+
+    // Filter for our node and sort by time descending
+    let rows = Array.isArray(data) ? data : (data.prices || data.data || []);
+    let nodeRows = rows.filter(r =>
+      (r.pnode || r.node || r.point_of_connection || '') === CONFIG.EMI_NODE
+    );
+
+    // If exact node not found, try partial match
+    if (!nodeRows.length) {
+      nodeRows = rows.filter(r =>
+        (r.pnode || r.node || r.point_of_connection || '').includes('HAY')
+      );
+    }
+
+    // Sort by time, newest first
+    nodeRows.sort((a, b) => {
+      const ta = a.interval_datetime || a.trading_date || a.timestamp || '';
+      const tb = b.interval_datetime || b.trading_date || b.timestamp || '';
+      return tb.localeCompare(ta);
+    });
+
+    if (!nodeRows.length) {
+      // Show what nodes we got for debugging
+      const nodes = [...new Set(rows.slice(0, 50).map(r => r.pnode || r.node || r.point_of_connection || 'unknown'))];
+      throw new Error(`No data for ${CONFIG.EMI_NODE}. Available nodes: ${nodes.slice(0, 10).join(', ')}`);
+    }
+
+    function priceClass(p) {
+      if (p < 80) return 'cheap';
+      if (p < 200) return 'mid';
+      return 'expensive';
+    }
+
+    const latest = nodeRows[0];
+    const price = parseFloat(latest.price || latest.dollar_per_megawatt_hour || latest.$/MWh || 0);
+    const centsKwh = (price / 10).toFixed(1);
+    const node = latest.pnode || latest.node || CONFIG.EMI_NODE;
+
+    let html = `
+      <div class="elec-current">${price.toFixed(1)}<span> $/MWh</span></div>
+      <div class="elec-node">${node} — ${centsKwh} c/kWh</div>
+    `;
+
+    // Show recent intervals
+    const recent = nodeRows.slice(0, 12);
+    if (recent.length > 1) {
+      html += `<div style="font-size:12px;color:#4a5068;margin-bottom:8px">Recent 5-min intervals</div>`;
+      for (const r of recent) {
+        const p = parseFloat(r.price || r.dollar_per_megawatt_hour || 0);
+        const t = r.interval_datetime || r.trading_date || '';
+        const timeStr = t ? new Date(t).toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit' }) : '';
+        html += `<div class="elec-history-row">
+          <div class="elec-time">${timeStr}</div>
+          <div class="elec-price ${priceClass(p)}">${p.toFixed(1)} $/MWh</div>
+        </div>`;
+      }
+    }
+
+    el.innerHTML = html;
+    document.getElementById('elec-updated').textContent = timeAgo(new Date());
+  } catch (err) {
+    el.innerHTML = `<div class="error">${err.message}</div>`;
+  }
+}
+
+// ── Stock Chart (6 months) ─────────────────────────────────────
+// Fallback data fetched 2025-02-25
+const CHART_FALLBACK = {
+  closes: [133.35,133.63,133.68,134.22,133.44,132.5,133.06,133.95,134.07,134.72,134.92,135.22,136.55,136.35,137.24,137.1,136.97,137.54,137.76,138.41,137.89,137.3,136.62,137.34,137.68,138.24,138.94,139.26,139.5,140.05,139.21,140.03,139.35,135.71,137.82,137.68,138.56,138.08,138.63,140.02,139.61,139.06,139.95,140.86,142.34,142.55,142.56,141.17,141.41,141.72,139.91,140.56,139.34,139.54,141.58,142.05,142.33,140.15,140.08,138.58,137.39,137.58,135.5,136.84,138.36,139.62,140.77,141.47,140.84,141.15,141.68,141.97,142.1,141.76,141.65,142.8,143.18,141.77,141.8,139.99,138.56,139.71,140.91,141.74,142.46,142.71,142.9,142.41,142.41,141.49,142.49,143.68,144.35,143.81,143.77,144.75,145.38,144.89,144.71,145.0,145.0,142.36,144.01,144.81,145.16,145.72,147.06,146.84,146.7,145.5,146.31,145.54,144.99,143.21,146.28,147.41,147.31,147.71,145.65,145.94,146.0,146.63,146.34,147.63,146.26,147.33],
+  timestamps: [1756128600,1756215000,1756301400,1756387800,1756474200,1756819800,1756906200,1756992600,1757079000,1757338200,1757424600,1757511000,1757597400,1757683800,1757943000,1758029400,1758115800,1758202200,1758288600,1758547800,1758634200,1758720600,1758807000,1758893400,1759152600,1759239000,1759325400,1759411800,1759498200,1759757400,1759843800,1759930200,1760016600,1760103000,1760362200,1760448600,1760535000,1760621400,1760707800,1760967000,1761053400,1761139800,1761226200,1761312600,1761571800,1761658200,1761744600,1761831000,1761917400,1762180200,1762266600,1762353000,1762439400,1762525800,1762785000,1762871400,1762957800,1763044200,1763130600,1763389800,1763476200,1763562600,1763649000,1763735400,1763994600,1764081000,1764167400,1764340200,1764599400,1764685800,1764772200,1764858600,1764945000,1765204200,1765290600,1765377000,1765463400,1765549800,1765809000,1765895400,1765981800,1766068200,1766154600,1766413800,1766500200,1766586600,1766759400,1767018600,1767105000,1767191400,1767364200,1767623400,1767709800,1767796200,1767882600,1767969000,1768228200,1768314600,1768401000,1768487400,1768573800,1768919400,1769005800,1769092200,1769178600,1769437800,1769524200,1769610600,1769697000,1769783400,1770042600,1770129000,1770215400,1770301800,1770388200,1770647400,1770733800,1770820200,1770906600,1770993000,1771338600,1771425000,1771511400,1771597800,1771857000,1771966802]
+};
+
+async function fetchStockChart() {
+  try {
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${CONFIG.STOCK_SYMBOL}?range=6mo&interval=1d`;
+    const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`);
+    if (!res.ok) throw new Error(res.status);
+    const json = await res.json();
+    const result = json.chart?.result?.[0];
+    if (!result) throw new Error('No data');
+
+    const closes = result.indicators.quote[0].close.filter(v => v != null);
+    const timestamps = result.timestamp.slice(0, closes.length);
+    if (closes.length) { drawChart(closes, timestamps); return; }
+  } catch (e) {
+    console.warn('Live chart fetch failed, using fallback:', e.message);
+  }
+  drawChart(CHART_FALLBACK.closes, CHART_FALLBACK.timestamps);
+}
+
+function drawChart(closes, timestamps) {
+  const wrap = document.getElementById('stocks-chart');
+  const canvas = document.getElementById('chart-canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Show first so we can measure
+  wrap.style.display = 'block';
+
+  // Hi-DPI support
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width;
+  const H = rect.height;
+
+  if (!W || !H) { wrap.style.display = 'none'; return; }
+
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const range = max - min || 1;
+  const pad = 4;
+
+  // Determine color based on overall trend
+  const up = closes[closes.length - 1] >= closes[0];
+  const lineColor = up ? '#56d364' : '#f85149';
+  const fillColor = up ? 'rgba(86,211,100,0.08)' : 'rgba(248,81,73,0.08)';
+
+  // Draw filled area
+  ctx.beginPath();
+  for (let i = 0; i < closes.length; i++) {
+    const x = (i / (closes.length - 1)) * W;
+    const y = pad + (1 - (closes[i] - min) / range) * (H - pad * 2);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W, H);
+  ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fillStyle = fillColor;
+  ctx.fill();
+
+  // Draw line
+  ctx.beginPath();
+  for (let i = 0; i < closes.length; i++) {
+    const x = (i / (closes.length - 1)) * W;
+    const y = pad + (1 - (closes[i] - min) / range) * (H - pad * 2);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Labels
+  const fmt = (ts) => new Date(ts * 1000).toLocaleDateString('en-NZ', { month: 'short', year: '2-digit' });
+  document.getElementById('chart-start').textContent = fmt(timestamps[0]);
+  document.getElementById('chart-end').textContent = fmt(timestamps[timestamps.length - 1]);
+  document.getElementById('chart-lo').textContent = 'Low $' + min.toFixed(2);
+  document.getElementById('chart-hi').textContent = 'High $' + max.toFixed(2);
+}
+
+// ── Init & Refresh ─────────────────────────────────────────────
+fetchBus();
+fetchWeather();
+fetchStocks();
+fetchStockChart();
+fetchElectricity();
+
+setInterval(fetchBus, CONFIG.BUS_REFRESH_SEC * 1000);
+setInterval(fetchWeather, CONFIG.WEATHER_REFRESH_SEC * 1000);
+setInterval(fetchStocks, CONFIG.STOCK_REFRESH_SEC * 1000);
+setInterval(fetchElectricity, CONFIG.EMI_REFRESH_SEC * 1000);
+</script>
+
+</body>
+</html>
