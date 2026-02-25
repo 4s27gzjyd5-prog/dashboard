@@ -461,7 +461,7 @@ const CONFIG = {
       <div class="news-list" id="news-top"><div class="loading">Loading…</div></div>
     </details>
     <details class="news-section" open>
-      <summary>Markets &amp; Money</summary>
+      <summary>Money Stuff — Matt Levine</summary>
       <div class="news-list" id="news-money"><div class="loading">Loading…</div></div>
     </details>
   </div>
@@ -815,7 +815,7 @@ function renderNewsItems(items) {
 async function fetchNews() {
   const feeds = [
     { el: document.getElementById('news-top'), url: 'https://www.ft.com/rss/home' },
-    { el: document.getElementById('news-money'), url: 'https://www.ft.com/markets?format=rss' },
+    { el: document.getElementById('news-money'), url: 'https://www.bloomberg.com/opinion/authors/ARbTQlRLRjE/matthew-s-levine.rss' },
   ];
 
   await Promise.all(feeds.map(async ({ el, url }) => {
