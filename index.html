@@ -15,6 +15,52 @@
     padding: 24px;
   }
 
+  /* Clock bar */
+  .clock-bar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 32px;
+    max-width: 1400px;
+    margin: 0 auto 20px;
+    padding: 12px 24px;
+    background: #1c1f2b;
+    border-radius: 12px;
+    border: 1px solid #2d3148;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .clock-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .clock-label {
+    font-size: 11px;
+    color: #4a5068;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .clock-time {
+    font-size: 18px;
+    font-weight: 300;
+    color: #e1e4e8;
+  }
+
+  .clock-sep {
+    color: #2d3148;
+    font-size: 18px;
+    user-select: none;
+  }
+
+  .forex-rate {
+    font-size: 18px;
+    font-weight: 300;
+    color: #e1e4e8;
+  }
+
   .grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -277,6 +323,59 @@
     margin: 20px auto 0;
   }
 
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 1400px;
+    margin: 20px auto 0;
+  }
+
+  @media (max-width: 1000px) {
+    .bottom-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Tides */
+  .tide-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #1a1d2a;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tide-row:last-child { border-bottom: none; }
+
+  .tide-type {
+    font-weight: 600;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    min-width: 48px;
+    text-align: center;
+    margin-right: 12px;
+  }
+
+  .tide-type.high { background: #1a3a4a; color: #58a6ff; }
+  .tide-type.low { background: #2a2a1a; color: #d2a04a; }
+
+  .tide-time { flex: 1; color: #c5cad6; }
+  .tide-height { color: #8b95a5; font-size: 13px; }
+  .tide-day-label {
+    font-size: 12px;
+    color: #4a5068;
+    margin: 12px 0 4px;
+  }
+  .tide-day-label:first-child { margin-top: 0; }
+
+  /* UV */
+  .uv-low { color: #56d364; }
+  .uv-mod { color: #e3b341; }
+  .uv-high { color: #f0883e; }
+  .uv-vhigh { color: #f85149; }
+  .uv-extreme { color: #bc4dff; }
+
   /* News */
   .news-item {
     display: flex;
@@ -405,6 +504,10 @@ const CONFIG = {
   EMI_NODE: 'HAY2201',  // Haywards — Wellington region GXP
   EMI_REFRESH_SEC: 300,  // 5 min (data updates every 5 min)
 
+  // NIWA Tides: get a free key at https://developer.niwa.co.nz
+  NIWA_API_KEY: '',
+  TIDE_REFRESH_SEC: 3600,  // 1 hour
+
   // FT Headlines (via RSS — no key needed)
   FT_REFRESH_SEC: 1800,  // 30 min
 
@@ -414,6 +517,17 @@ const CONFIG = {
 </script>
 
 <div id="config-banner"></div>
+
+<!-- Clock Bar -->
+<div class="clock-bar" id="clock-bar">
+  <div class="clock-item"><span class="clock-label">Wellington</span><span class="clock-time" id="clock-wlg"></span></div>
+  <span class="clock-sep">|</span>
+  <div class="clock-item"><span class="clock-label">London</span><span class="clock-time" id="clock-lon"></span></div>
+  <span class="clock-sep">|</span>
+  <div class="clock-item"><span class="clock-label">New York</span><span class="clock-time" id="clock-nyc"></span></div>
+  <span class="clock-sep">|</span>
+  <div class="clock-item"><span class="clock-label">NZD/USD</span><span class="forex-rate" id="forex-rate">—</span></div>
+</div>
 
 <div class="grid">
   <!-- Bus Panel -->
@@ -467,8 +581,15 @@ const CONFIG = {
   </div>
 </div>
 
-<!-- Electricity Panel (full width) -->
-<div class="bottom-panel">
+<!-- Tides + Electricity -->
+<div class="bottom-grid">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Wellington Harbour Tides</div>
+      <div class="updated" id="tide-updated"></div>
+    </div>
+    <div id="tide-content"><div class="loading">Loading…</div></div>
+  </div>
   <div class="panel">
     <div class="panel-header">
       <div class="panel-title">Electricity Spot Price</div>
@@ -527,12 +648,46 @@ function dayName(dateStr, i) {
   return new Date(dateStr).toLocaleDateString('en-NZ', { weekday: 'short' });
 }
 
+function uvClass(index) {
+  if (index == null) return '';
+  if (index < 3) return 'uv-low';
+  if (index < 6) return 'uv-mod';
+  if (index < 8) return 'uv-high';
+  if (index < 11) return 'uv-vhigh';
+  return 'uv-extreme';
+}
+
+// ── Clock Bar ─────────────────────────────────────────────────
+function updateClocks() {
+  const now = new Date();
+  const fmt = (tz) => now.toLocaleTimeString('en-NZ', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  document.getElementById('clock-wlg').textContent = fmt('Pacific/Auckland');
+  document.getElementById('clock-lon').textContent = fmt('Europe/London');
+  document.getElementById('clock-nyc').textContent = fmt('America/New_York');
+}
+updateClocks();
+setInterval(updateClocks, 1000);
+
+async function fetchForex() {
+  try {
+    const res = await fetch('https://api.frankfurter.app/latest?from=NZD&to=USD');
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    document.getElementById('forex-rate').textContent = data.rates.USD.toFixed(4);
+  } catch (e) {
+    document.getElementById('forex-rate').textContent = '—';
+  }
+}
+fetchForex();
+setInterval(fetchForex, 3600000); // hourly (ECB rates update daily)
+
 // ── Config banner ──────────────────────────────────────────────
 (function checkConfig() {
   const missing = [];
   if (!CONFIG.METLINK_API_KEY) missing.push('METLINK_API_KEY');
   if (!CONFIG.FINNHUB_API_KEY) missing.push('FINNHUB_API_KEY');
   if (!CONFIG.EMI_API_KEY) missing.push('EMI_API_KEY');
+  if (!CONFIG.NIWA_API_KEY) missing.push('NIWA_API_KEY');
   if (missing.length) {
     document.getElementById('config-banner').innerHTML =
       `<div class="config-warning">Add your API keys in the CONFIG section at the top of this file: ${missing.map(k => `<code>${k}</code>`).join(', ')}</div>`;
@@ -606,7 +761,7 @@ async function fetchBus() {
 async function fetchWeather() {
   const el = document.getElementById('weather-content');
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${CONFIG.WEATHER_LAT}&longitude=${CONFIG.WEATHER_LON}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Pacific%2FAuckland&forecast_days=5`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${CONFIG.WEATHER_LAT}&longitude=${CONFIG.WEATHER_LON}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature,is_day,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max&timezone=Pacific%2FAuckland&forecast_days=5`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Weather API: ${res.status}`);
     const data = await res.json();
@@ -624,6 +779,7 @@ async function fetchWeather() {
         <div class="weather-detail">Feels like <strong>${Math.round(c.apparent_temperature)}°</strong></div>
         <div class="weather-detail">Humidity <strong>${c.relative_humidity_2m}%</strong></div>
         <div class="weather-detail">Wind <strong>${Math.round(c.wind_speed_10m)} km/h</strong></div>
+        <div class="weather-detail">UV <strong class="${uvClass(c.uv_index)}">${c.uv_index != null ? c.uv_index.toFixed(0) : '—'}</strong></div>
       </div>
     `;
 
@@ -830,6 +986,61 @@ async function fetchNews() {
   document.getElementById('news-updated').textContent = timeAgo(new Date());
 }
 
+// ── Tides ─────────────────────────────────────────────────────
+async function fetchTides() {
+  const el = document.getElementById('tide-content');
+  if (!CONFIG.NIWA_API_KEY) {
+    el.innerHTML = '<div class="error">NIWA API key not set — register free at developer.niwa.co.nz</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(
+      `https://api.niwa.co.nz/tides/data?lat=${CONFIG.WEATHER_LAT}&long=${CONFIG.WEATHER_LON}&datum=MSL&numberOfDays=2&apikey=${CONFIG.NIWA_API_KEY}`
+    );
+    if (!res.ok) throw new Error(`NIWA: ${res.status}`);
+    const data = await res.json();
+
+    if (!data.values?.length) throw new Error('No tide data');
+
+    // Group by date
+    const today = new Date().toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland' });
+    const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland' });
+
+    const tides = data.values.map(v => {
+      const d = new Date(v.time);
+      const dateStr = d.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland' });
+      const timeStr = d.toLocaleTimeString('en-NZ', { timeZone: 'Pacific/Auckland', hour: '2-digit', minute: '2-digit' });
+      const isHigh = v.value > 0;
+      return { dateStr, timeStr, height: v.value, isHigh };
+    });
+
+    let html = '';
+    const groups = [
+      { label: 'Today', filter: today },
+      { label: 'Tomorrow', filter: tomorrow },
+    ];
+
+    for (const { label, filter } of groups) {
+      const dayTides = tides.filter(t => t.dateStr === filter);
+      if (!dayTides.length) continue;
+      html += `<div class="tide-day-label">${label}</div>`;
+      for (const t of dayTides) {
+        html += `<div class="tide-row">
+          <span class="tide-type ${t.isHigh ? 'high' : 'low'}">${t.isHigh ? 'High' : 'Low'}</span>
+          <span class="tide-time">${t.timeStr}</span>
+          <span class="tide-height">${t.height.toFixed(2)} m</span>
+        </div>`;
+      }
+    }
+
+    el.innerHTML = html || '<div class="loading">No tide data for today</div>';
+    document.getElementById('tide-updated').textContent = timeAgo(new Date());
+  } catch (err) {
+    el.innerHTML = `<div class="error">${err.message}</div>`;
+  }
+}
+
 // ── Stock Chart (6 months) ─────────────────────────────────────
 // Fallback data fetched 2025-02-25
 const CHART_FALLBACK = {
@@ -925,12 +1136,14 @@ fetchStocks();
 fetchStockChart();
 fetchElectricity();
 fetchNews();
+fetchTides();
 
 setInterval(fetchBus, CONFIG.BUS_REFRESH_SEC * 1000);
 setInterval(fetchWeather, CONFIG.WEATHER_REFRESH_SEC * 1000);
 setInterval(fetchStocks, CONFIG.STOCK_REFRESH_SEC * 1000);
 setInterval(fetchElectricity, CONFIG.EMI_REFRESH_SEC * 1000);
 setInterval(fetchNews, CONFIG.FT_REFRESH_SEC * 1000);
+setInterval(fetchTides, CONFIG.TIDE_REFRESH_SEC * 1000);
 </script>
 
 </body>
